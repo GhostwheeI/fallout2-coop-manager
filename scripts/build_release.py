@@ -10,6 +10,8 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "manager"))
+from core import MANAGER_VERSION
 TAG = "v1.4.3"
 ZIP_NAME = "fallout2-coop-v1.4.3-windows.zip"
 ZIP_HASH = "a46781291e053b87cecaf1409ead5d3ff2cdf2782d5497b9dba39454b0628f89"
@@ -73,7 +75,7 @@ def build():
     # Explicit allowlist: never recursively archive the working directory.
     files = [output / name for name in ("Fallout 2 Co-op Manager.exe", "START-HERE.txt", "README.md", "PROJECT-REVIEW.md", "LICENSE", "THIRD-PARTY-NOTICES.md")]
     files += [p for p in (output / "third_party").rglob("*") if p.is_file()]
-    artifact = ROOT / "Fallout2-Coop-Manager-v0.1.0-Windows.zip"
+    artifact = ROOT / f"Fallout2-Coop-Manager-v{MANAGER_VERSION}-Windows.zip"
     with zipfile.ZipFile(artifact, "w", zipfile.ZIP_DEFLATED) as bundle:
         for path in files:
             bundle.write(path, "Fallout2-Coop-Manager/" + path.relative_to(output).as_posix())

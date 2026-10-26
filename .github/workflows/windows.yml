@@ -19,5 +19,5 @@ jobs:
         with:
           name: Fallout2-Coop-Manager-Windows
           path: |
-            Fallout2-Coop-Manager-v0.1.0-Windows.zip
+            Fallout2-Coop-Manager-v0.1.1-Windows.zip
             SHA256SUMS.txt

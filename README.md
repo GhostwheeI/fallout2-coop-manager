@@ -60,7 +60,7 @@ sets are not verified by this manager. Start with a clean Steam installation.
 ## Install once
 
 1. Open [Releases](https://github.com/GhostwheeI/fallout2-coop-manager/releases/latest).
-2. Download **`Fallout2-Coop-Manager-v0.1.0-Windows.zip`**.
+2. Download **`Fallout2-Coop-Manager-v0.1.1-Windows.zip`**.
 3. **Extract the entire ZIP** into a writable folder. Do not run the app from
    inside the ZIP or place it inside your original Steam game folder.
 4. Open **`Fallout 2 Co-op Manager.exe`**.
@@ -77,7 +77,7 @@ before deciding whether to run it. You can also [build from source](#run-or-buil
 Download `SHA256SUMS.txt` from the same release. In the folder containing the ZIP:
 
 ```powershell
-Get-FileHash .\Fallout2-Coop-Manager-v0.1.0-Windows.zip -Algorithm SHA256
+Get-FileHash .\Fallout2-Coop-Manager-v0.1.1-Windows.zip -Algorithm SHA256
 ```
 
 Compare the hash with `SHA256SUMS.txt`. They should match exactly; letter case

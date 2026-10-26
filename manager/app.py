@@ -15,7 +15,7 @@ from tkinter import filedialog, messagebox, ttk
 import traceback
 import webbrowser
 
-from core import (VERSION, RELEASE_URL, MESHNET_URL, Installation, ServerProcess,
+from core import (VERSION, MANAGER_VERSION, RELEASE_URL, MESHNET_URL, Installation, ServerProcess,
                   base_directory, discover_steam_games, launch_client, sha256,
                   validate_address, validate_player)
 
@@ -25,7 +25,7 @@ BG, PANEL, FG, MUTED, ACCENT = "#111b19", "#1b2925", "#e2e8d8", "#adbaac", "#f0c
 class Manager(tk.Tk):
     def __init__(self, root=None):
         super().__init__()
-        self.title("Fallout 2 Co-op · Play together")
+        self.title(f"Fallout 2 Co-op Manager v{MANAGER_VERSION}")
         self.geometry("1040x780")
         self.minsize(920, 700)
         self.configure(background=BG)
@@ -101,7 +101,7 @@ class Manager(tk.Tk):
         head = ttk.Frame(wrapper)
         head.pack(fill="x")
         ttk.Label(head, text="FALLOUT 2  /  CO-OP", foreground=ACCENT, font=("Consolas", 13, "bold")).pack(side="left")
-        ttk.Label(head, text=VERSION, style="Muted.TLabel").pack(side="right")
+        ttk.Label(head, text=f"Manager {MANAGER_VERSION} · {VERSION}", style="Muted.TLabel").pack(side="right")
         ttk.Separator(wrapper).pack(fill="x", pady=14)
         body = ttk.Frame(wrapper)
         body.pack(fill="both", expand=True)

@@ -19,6 +19,7 @@ import zipfile
 from datetime import datetime
 
 VERSION = "gusmarcum v1.4.3"
+MANAGER_VERSION = "0.1.1"
 RELEASE_URL = "https://github.com/gusmarcum/fallout2-coop/releases/tag/v1.4.3"
 MESHNET_URL = "https://meshnet.nordvpn.com/getting-started/how-to-start-using-meshnet/using-meshnet-on-windows"
 ENGINE_HASHES = {
@@ -171,6 +172,7 @@ class Installation:
     @contextmanager
     def world_access(self):
         """Cross-process lock: maintenance cannot swap files under a managed server."""
+        self.root.mkdir(parents=True, exist_ok=True)
         lock_file = (self.root / ".world.lock").open("a+b")
         if lock_file.tell() == 0:
             lock_file.write(b"0")
@@ -425,6 +427,10 @@ class ServerProcess:
     def start(self, slot: int | None) -> None:
         if self.running():
             raise ValueError("The server is already running.")
+        if self.reader_thread and self.reader_thread.is_alive():
+            self.reader_thread.join(timeout=5)
+            if self.reader_thread.is_alive():
+                raise ValueError("The previous server is still finishing. Please wait before restarting.")
         folder = self.installation.directory("server")
         verify_engine(folder)
         # Refuse to collide with another server. This is a local port check, not a firewall change.
@@ -437,16 +443,19 @@ class ServerProcess:
         logs = self.installation.root / "Logs"
         logs.mkdir(exist_ok=True)
         self.log_file = (logs / f"server-{datetime.now():%Y%m%d-%H%M%S}.log").open("w", encoding="utf-8")
+        world_lock = None
         try:
-            self.world_lock = self.installation.world_access()
-            self.world_lock.__enter__()
+            candidate = self.installation.world_access()
+            candidate.__enter__()
+            world_lock = candidate
+            self.world_lock = world_lock
             self.process = subprocess.Popen([str(folder / "f2_server.exe")], cwd=folder, env=env,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         except Exception:
             self.log_file.close()
-            if self.world_lock:
-                self.world_lock.__exit__(None, None, None)
+            if world_lock:
+                world_lock.__exit__(None, None, None)
                 self.world_lock = None
             raise
         import threading
@@ -467,8 +476,9 @@ class ServerProcess:
             finally:
                 self.online = 0
                 log_file.close()
-                self.world_lock.__exit__(None, None, None)
-                self.world_lock = None
+                world_lock.__exit__(None, None, None)
+                if self.world_lock is world_lock:
+                    self.world_lock = None
         self.reader_thread = threading.Thread(target=reader, daemon=True)
         self.reader_thread.start()
 
@@ -490,6 +500,8 @@ class ServerProcess:
             self.process.terminate()
             self.process.wait(timeout=15)
             self.reader_thread.join(timeout=5)
+            if self.reader_thread.is_alive():
+                raise ValueError("The server stopped but log cleanup is still finishing. Please wait before backing up.")
 
 
 def launch_client(installation: Installation, address: str, player: str):

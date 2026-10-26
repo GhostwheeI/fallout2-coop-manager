@@ -2,11 +2,12 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import stat
 import unittest
 from unittest.mock import patch
 import zipfile
 
-from core import Installation, clean_environment, validate_address, validate_player, asset_fingerprint, write_local_config
+from core import Installation, ServerProcess, clean_environment, validate_address, validate_player, asset_fingerprint, write_local_config
 
 
 class ManagerTests(unittest.TestCase):
@@ -151,6 +152,27 @@ class ManagerTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.app.restore(archive)
             self.assertEqual((slot / "SAVE.DAT").read_bytes(), b"saved character")
+
+    def test_restore_and_cleanup_handle_read_only_old_files(self):
+        _, slot, maps = self.seed_world()
+        archive = self.app.backup()
+        (slot / "SAVE.DAT").chmod(stat.S_IREAD)
+        (maps / "ARVILLAG.SAV").chmod(stat.S_IREAD)
+        self.app.restore(archive)
+        self.assertEqual((slot / "SAVE.DAT").read_bytes(), b"saved character")
+
+    def test_world_lock_creates_a_fresh_root(self):
+        install = Installation(self.root / "new-manager-folder")
+        with install.world_access():
+            self.assertTrue(install.root.exists())
+
+    def test_failed_server_launch_releases_maintenance_lock(self):
+        self.seed_world()
+        server = ServerProcess(self.app, lambda _: None)
+        with patch("core.verify_engine"), patch("core.subprocess.Popen", side_effect=OSError("simulated launch failure")):
+            with self.assertRaises(OSError):
+                server.start(None)
+        self.assertIsNotNone(self.app.backup())
 
 
 if __name__ == "__main__":
