@@ -1,0 +1,39 @@
+name: Manager bug
+description: Report a setup, launcher, backup or interface problem.
+title: "[Manager] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For combat, quest, inventory or other gameplay bugs, please check the engine's issue tracker first: https://github.com/gusmarcum/fallout2-coop/issues
+        Do not post game assets, saved games, private IP addresses, account details or full unredacted logs.
+  - type: input
+    id: version
+    attributes:
+      label: Manager release and Windows version
+      placeholder: "Manager v0.1.0; Windows 11"
+    validations:
+      required: true
+  - type: dropdown
+    id: action
+    attributes:
+      label: What were you doing?
+      options:
+        - Preparing game files
+        - Starting or stopping a server
+        - Connecting to a server
+        - Backing up or restoring
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant error or redacted log excerpt
+      render: text

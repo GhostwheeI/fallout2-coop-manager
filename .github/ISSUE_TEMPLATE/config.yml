@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Gameplay engine bugs
+    url: https://github.com/gusmarcum/fallout2-coop/issues
+    about: Combat, quests and multiplayer simulation belong to the upstream engine.
+  - name: Official NordVPN Meshnet guide
+    url: https://meshnet.nordvpn.com/getting-started/how-to-start-using-meshnet/using-meshnet-on-windows
+    about: Help linking devices and setting Meshnet permissions.

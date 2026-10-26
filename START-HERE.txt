@@ -1,0 +1,25 @@
+FALLOUT 2 CO-OP MANAGER — FIRST-TIME SETUP
+
+1. Extract the whole ZIP to a writable folder, such as Documents\Fallout2-Coop-Manager.
+   Do not run it from inside the ZIP or put it in your Steam game folder.
+2. Double-click Fallout 2 Co-op Manager.exe. No Python installation is needed.
+3. Choose START DEDICATED SERVER to host, or CONNECT TO DEDICATED SERVER to join.
+4. Follow the numbered steps. Your own English Steam installation supplies the game data.
+5. For internet play, open CONNECTION GUIDE. Link the two devices using NordVPN Meshnet.
+   The host joins 127.0.0.1:9300. The friend joins the host's Meshnet address.
+
+Use the same player name every session to retrieve your character.
+Both players must use the same manager package / engine version (gusmarcum v1.4.3).
+Keep everyone on the same floor, especially during combat.
+
+F6 = shared quicksave. F7 = shared quickload (affects everyone).
+Before stopping: F6, wait for the saved message, wait 10 seconds, everyone quits,
+then choose STOP & BACK UP in the manager. A hard server stop does not create a save.
+
+The engine is experimental. Keep backups and test a save/restart with your friend
+before starting a long campaign. The manager has no administrator console enabled.
+
+To share: send the original download ZIP and the manager's copied joining instructions.
+Do not zip your working Play/World folders; they contain copyrighted data and your saves.
+
+README.md contains the full guide. PROJECT-REVIEW.md explains the engine choice.
