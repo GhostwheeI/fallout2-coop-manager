@@ -33,4 +33,3 @@ applications under their own terms.
 
 No original game data, Steam files, save games, or modified game assets are
 distributed. Every player must obtain their own licensed copy of Fallout 2.
-

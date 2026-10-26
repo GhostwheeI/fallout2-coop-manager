@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import hashlib
 import configparser
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
 import re
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -166,7 +168,42 @@ class Installation:
         directory = self.directory(role)
         return valid_source(directory) and (directory / "fallout2.cfg").exists() and all((directory / name).exists() for name in ENGINE_HASHES)
 
+    @contextmanager
+    def world_access(self):
+        """Cross-process lock: maintenance cannot swap files under a managed server."""
+        lock_file = (self.root / ".world.lock").open("a+b")
+        if lock_file.tell() == 0:
+            lock_file.write(b"0")
+            lock_file.flush()
+        lock_file.seek(0)
+        try:
+            if sys.platform == "win32":
+                import msvcrt
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            lock_file.close()
+            raise ValueError("This world is in use. Stop the server before changing or backing up its files.") from None
+        try:
+            yield
+        finally:
+            lock_file.seek(0)
+            if sys.platform == "win32":
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
+            lock_file.close()
+
     def prepare(self, source: Path, role: str, log=print) -> None:
+        if role == "server":
+            with self.world_access():
+                self._prepare(source, role, log)
+        else:
+            self._prepare(source, role, log)
+
+    def _prepare(self, source: Path, role: str, log=print) -> None:
         source = source.resolve()
         destination = self.directory(role)
         if self.ready(role):
@@ -194,6 +231,7 @@ class Installation:
                 def ignore_runtime(folder, names):
                     return [n for n in names if n.upper() == "SAVEGAME" or n.lower().endswith(".sav") or n.upper() == "AUTOMAP.DB"]
                 shutil.copytree(source / name, destination / name, dirs_exist_ok=True, ignore=ignore_runtime)
+        (destination / "data").mkdir(exist_ok=True)
         # Steam's original executable, ddraw.dll, sfall and high-res hooks are intentionally not copied.
         write_local_config(source / "fallout2.cfg", destination / "fallout2.cfg")
         for name in ENGINE_HASHES:
@@ -252,6 +290,10 @@ class Installation:
         return env
 
     def backup(self) -> Path | None:
+        with self.world_access():
+            return self._backup()
+
+    def _backup(self) -> Path | None:
         world = self.directory("server")
         files = [p for p in (world / "data" / "SAVEGAME").rglob("*") if p.is_file()]
         files += list((world / "data" / "MAPS").glob("*.SAV"))
@@ -280,11 +322,15 @@ class Installation:
         return archive
 
     def restore(self, archive: Path) -> None:
+        with self.world_access():
+            self._restore(archive)
+
+    def _restore(self, archive: Path) -> None:
         world = self.directory("server")
         if not self.ready("server"):
             raise ValueError("Prepare a server first.")
         with zipfile.ZipFile(archive) as source:
-            if not any(re.fullmatch(r"data/savegame/slot\d+/save\.dat", info.filename.replace("\\", "/"), re.I) for info in source.infolist()):
+            if not any(re.fullmatch(r"data/savegame/slot(?:0[1-9]|1[0-6])/save\.dat", info.filename.replace("\\", "/"), re.I) for info in source.infolist()):
                 raise ValueError("This archive contains no saved campaign.")
             if sum(info.file_size for info in source.infolist()) > 1024 ** 3:
                 raise ValueError("Backup is too large.")
@@ -298,10 +344,10 @@ class Installation:
                 if info.is_dir():
                     if parts == ["data"] or parts in (["data", "savegame"], ["data", "maps"]):
                         continue
-                    if len(parts) >= 3 and parts[:2] == ["data", "savegame"] and re.fullmatch(r"slot\d{1,2}", parts[2]):
+                    if len(parts) >= 3 and parts[:2] == ["data", "savegame"] and re.fullmatch(r"slot(?:0[1-9]|1[0-6])", parts[2]):
                         continue
                     raise ValueError("Unexpected backup directory.")
-                allowed = bool(len(parts) >= 4 and parts[:2] == ["data", "savegame"] and re.fullmatch(r"slot\d{1,2}", parts[2]))
+                allowed = bool(len(parts) >= 4 and parts[:2] == ["data", "savegame"] and re.fullmatch(r"slot(?:0[1-9]|1[0-6])", parts[2]))
                 allowed |= len(parts) == 3 and parts[:2] == ["data", "maps"] and parts[2].endswith(".sav")
                 if not allowed:
                     raise ValueError("This archive is not a manager world backup.")
@@ -313,12 +359,18 @@ class Installation:
             # Validate and extract fully before changing the installed world.
             with tempfile.TemporaryDirectory(dir=self.root, prefix="restore-") as staging:
                 staging = Path(staging)
+                total_written = 0
                 for info, relative in members:
                     target = staging / relative
                     target.parent.mkdir(parents=True, exist_ok=True)
                     with source.open(info) as incoming, target.open("wb") as output:
-                        shutil.copyfileobj(incoming, output)
-                self.backup()
+                        for chunk in iter(lambda: incoming.read(1024 * 1024), b""):
+                            total_written += len(chunk)
+                            if total_written > 1024 ** 3:
+                                raise ValueError("Decompressed backup is too large.")
+                            output.write(chunk)
+                self._backup()
+                (world / "data").mkdir(exist_ok=True)
                 # Build the whole replacement MAPS directory before swapping anything.
                 maps = world / "data" / "MAPS"
                 next_maps = staging / "next-maps"
@@ -328,6 +380,7 @@ class Installation:
                     shutil.copytree(maps, next_maps)
                     for path in next_maps.iterdir():
                         if path.suffix.lower() == ".sav":
+                            path.chmod(path.stat().st_mode | stat.S_IWRITE)
                             path.unlink()
                 else:
                     next_maps.mkdir()
@@ -363,6 +416,8 @@ class ServerProcess:
         self.online = 0
         self.last_output = time.monotonic()
         self.last_save_output = 0.0
+        self.world_lock = None
+        self.reader_thread = None
 
     def running(self) -> bool:
         return self.process is not None and self.process.poll() is None
@@ -383,11 +438,16 @@ class ServerProcess:
         logs.mkdir(exist_ok=True)
         self.log_file = (logs / f"server-{datetime.now():%Y%m%d-%H%M%S}.log").open("w", encoding="utf-8")
         try:
+            self.world_lock = self.installation.world_access()
+            self.world_lock.__enter__()
             self.process = subprocess.Popen([str(folder / "f2_server.exe")], cwd=folder, env=env,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         except Exception:
             self.log_file.close()
+            if self.world_lock:
+                self.world_lock.__exit__(None, None, None)
+                self.world_lock = None
             raise
         import threading
         process, log_file = self.process, self.log_file
@@ -407,7 +467,10 @@ class ServerProcess:
             finally:
                 self.online = 0
                 log_file.close()
-        threading.Thread(target=reader, daemon=True).start()
+                self.world_lock.__exit__(None, None, None)
+                self.world_lock = None
+        self.reader_thread = threading.Thread(target=reader, daemon=True)
+        self.reader_thread.start()
 
     def stop(self) -> None:
         # Upstream offers no safe local shutdown IPC with its admin socket disabled.
@@ -426,6 +489,7 @@ class ServerProcess:
                 time.sleep(.1)
             self.process.terminate()
             self.process.wait(timeout=15)
+            self.reader_thread.join(timeout=5)
 
 
 def launch_client(installation: Installation, address: str, player: str):

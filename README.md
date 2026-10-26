@@ -319,4 +319,3 @@ Manager source: **MIT**. Bundled engine: its separate **Sustainable Use License*
 including non-commercial distribution restrictions. See
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). This fan project is unaffiliated
 with the original game publishers, Steam or NordVPN.
-

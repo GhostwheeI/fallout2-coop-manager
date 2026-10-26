@@ -135,6 +135,23 @@ class ManagerTests(unittest.TestCase):
         self.assertEqual((slot / "SAVE.DAT").read_bytes(), b"current progress")
         self.assertEqual((maps / "ARVILLAG.SAV").read_bytes(), b"visited map")
 
+    def test_live_world_lock_blocks_maintenance(self):
+        self.seed_world()
+        with self.app.world_access():
+            with self.assertRaises(ValueError):
+                self.app.backup()
+        self.assertIsNotNone(self.app.backup())
+
+    def test_restore_rejects_invalid_slot_numbers(self):
+        _, slot, _ = self.seed_world()
+        for name in ("SLOT00", "SLOT17", "SLOT1"):
+            archive = self.root / "invalid-slot.zip"
+            with zipfile.ZipFile(archive, "w") as output:
+                output.writestr(f"data/SAVEGAME/{name}/SAVE.DAT", b"invalid")
+            with self.assertRaises(ValueError):
+                self.app.restore(archive)
+            self.assertEqual((slot / "SAVE.DAT").read_bytes(), b"saved character")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
