@@ -1,0 +1,9 @@
+/tools/
+/results/
+/scratch/
+/CHECKPOINT.md
+__pycache__/
+*.exe
+*.dll
+*.key
+*.pem

@@ -1,0 +1,12 @@
+--- a/src/server_net.cc
++++ b/src/server_net.cc
+@@ -134,3 +134,3 @@
+     addr.sin_family = AF_INET;
+-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
++    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+     addr.sin_port = htons(port);
+@@ -611,3 +611,3 @@
+     addr.sin_family = AF_INET;
+-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
++    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+     addr.sin_port = htons(port);
